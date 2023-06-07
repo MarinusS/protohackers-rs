@@ -11,7 +11,6 @@ async fn main() {
     let (reader, mut writer) = socket.split();
 
     let mut reader = BufReader::new(reader);
-
     let mut buf = Vec::new();
 
     reader.read_to_end(&mut buf).await.unwrap();
