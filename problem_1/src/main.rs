@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 use serde::{Deserialize, Serialize};
 use serde_json::{Number, Value};
 use tokio::{
@@ -71,7 +73,8 @@ fn request_handler(line: &str) -> Vec<u8> {
 
 #[tokio::main]
 async fn main() {
-    let listener = TcpListener::bind("139.99.90.211:8080").await.unwrap();
+    let bind = (Ipv4Addr::UNSPECIFIED, 8080);
+    let listener = TcpListener::bind(bind).await.unwrap();
 
     loop {
         let (mut socket, addr) = listener.accept().await.unwrap();

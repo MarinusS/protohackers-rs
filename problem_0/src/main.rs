@@ -1,3 +1,5 @@
+use std::net::Ipv4Addr;
+
 use tokio::{
     io::{AsyncReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
@@ -5,7 +7,8 @@ use tokio::{
 
 #[tokio::main]
 async fn main() {
-    let listener = TcpListener::bind("139.99.90.211:8080").await.unwrap();
+    let bind = (Ipv4Addr::UNSPECIFIED, 8080);
+    let listener = TcpListener::bind(bind).await.unwrap();
 
     loop {
         let (mut socket, _addr) = listener.accept().await.unwrap();
