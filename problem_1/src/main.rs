@@ -28,13 +28,13 @@ fn is_prime(number: u64) -> bool {
             return false;
         }
     }
-    return true;
+    true
 }
 
 fn is_prime_handler(request: Value) -> Vec<u8> {
     let bad_request_response: Vec<u8> = vec![b'\n'];
 
-    let response = match serde_json::from_value::<IsPrimeRequest>(request) {
+    match serde_json::from_value::<IsPrimeRequest>(request) {
         Ok(request) => {
             let prime = if request.number.is_u64() {
                 is_prime(request.number.as_u64().unwrap())
@@ -51,15 +51,13 @@ fn is_prime_handler(request: Value) -> Vec<u8> {
             response.into_bytes()
         }
         Err(_) => bad_request_response,
-    };
-
-    return response;
+    }
 }
 
 fn request_handler(line: &str) -> Vec<u8> {
     let bad_request_response: Vec<u8> = vec![b'\n'];
 
-    if let Ok(request) = serde_json::from_str::<Value>(&line) {
+    if let Ok(request) = serde_json::from_str::<Value>(line) {
         if request["method"].is_string() {
             match request["method"].as_str().unwrap() {
                 "isPrime" => return is_prime_handler(request),

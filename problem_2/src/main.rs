@@ -11,7 +11,7 @@ struct TimestampedPrice {
 }
 
 fn average(numbers: &[i32]) -> i32 {
-    if numbers.len() == 0 {
+    if numbers.is_empty() {
         return 0;
     }
     //Casting to i64 to prevent overflow
