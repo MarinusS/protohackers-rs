@@ -21,7 +21,7 @@ static WELCOME_MESSAGE: &str = "Welcome to budgetchat! What shall I call you?";
 static CONNECTED_USERS_MESSAGE: &str = "The room contains:";
 static USER_ENTERED_ROOM_MESSAGE: &str = "has entered the room";
 static USER_LEFT_ROOM_MESSAGE: &str = "has left the room";
-static INVALID_NAME_MESSAGE: &str = "Invalid name. Name must be at leat 1 character long and consist only of alahanumeric characters";
+static INVALID_NAME_MESSAGE: &str = "Invalid name. Name must be at leat 1 character long and only consist of alahanumeric characters";
 
 #[tokio::main]
 async fn main() {
