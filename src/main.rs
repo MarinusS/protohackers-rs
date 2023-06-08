@@ -5,7 +5,7 @@ use tokio::{
 
 #[tokio::main]
 async fn main() {
-    let listener = TcpListener::bind("127.0.0.1:8080").await.unwrap();
+    let listener = TcpListener::bind("139.99.90.211:8080").await.unwrap();
 
     loop {
         let (mut socket, _addr) = listener.accept().await.unwrap();
