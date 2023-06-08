@@ -1,7 +1,6 @@
 use std::{
     collections::HashMap,
     net::{Ipv4Addr, SocketAddr},
-    ops::Deref,
     sync::Arc,
 };
 
@@ -22,6 +21,7 @@ static WELCOME_MESSAGE: &str = "Welcome to budgetchat! What shall I call you?";
 static CONNECTED_USERS_MESSAGE: &str = "The room contains:";
 static USER_ENTERED_ROOM_MESSAGE: &str = "has entered the room";
 static USER_LEFT_ROOM_MESSAGE: &str = "has left the room";
+static INVALID_NAME_MESSAGE: &str = "Invalid name. Name must be at leat 1 character long and consist only of alahanumeric characters";
 
 #[tokio::main]
 async fn main() {
@@ -50,7 +50,7 @@ async fn main() {
             line_buf.clear();
 
             if name.is_empty() || !name.chars().all(char::is_alphanumeric) {
-                let msg = "Invalide name, name must be at leat 1 character long and consist only of alqhqnumeric chqrqcters.\n".to_string();
+                let msg = format!("{}\n", INVALID_NAME_MESSAGE);
                 writer.write_all(msg.as_bytes()).await.unwrap();
                 return;
             }
