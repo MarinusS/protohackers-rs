@@ -26,6 +26,10 @@ fn build_request(data: &str) -> Request<'_> {
     }
 }
 
+//I am not spawning any threads and dealing with the UDP packets sequentially
+//Therefore this could have easily been solved without tokio
+//I might come back and send the responses in threads to make things more interesting
+//
 #[tokio::main]
 async fn main() {
     let bind = (Ipv4Addr::UNSPECIFIED, 8080);
