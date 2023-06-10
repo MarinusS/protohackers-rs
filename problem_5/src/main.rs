@@ -12,6 +12,43 @@ struct Message<'a> {
     dest_writer: &'a mut OwnedWriteHalf,
 }
 
+static TONY_BOGUSCOIN_ADDR: &str = "7YWHMfk9JZe0LM0g1ZauHuiSxhI";
+
+fn addr_of(s: &str) -> usize {
+    s.as_ptr() as usize
+}
+
+fn split_whitespace_indices(s: &str) -> impl Iterator<Item = (usize, &str)> {
+    s.split_whitespace()
+        .map(move |sub| (addr_of(sub) - addr_of(s), sub))
+}
+
+fn is_boguscoin_addr(word: &str) -> bool {
+    word.len() >= 26
+        && word.len() <= 35
+        && word.starts_with('7')
+        && word.chars().all(|c| c.is_alphanumeric())
+}
+
+fn rewrite_boguscoin_addr(line: &str) -> String {
+    //Iterator of tuples that are the starting and end posisionts of valid boguscoin adresses.
+    let adresses_positions = split_whitespace_indices(line)
+        .filter(|(_, word)| is_boguscoin_addr(word))
+        .map(|(idx, word)| (idx, idx + word.len()));
+
+    let (cursor, mut new_line) = adresses_positions.fold(
+        (0, Vec::new()),
+        |(cursor, mut new_line), (addr_start, addr_end)| {
+            new_line.push(&line[cursor..addr_start]);
+            new_line.push(TONY_BOGUSCOIN_ADDR);
+            (addr_end, new_line)
+        },
+    );
+
+    new_line.push(&line[cursor..]);
+    new_line.concat()
+}
+
 async fn reroute_message<'a>(msg: &mut Message<'a>) -> bool {
     if msg.result.is_err() || *msg.result.as_ref().unwrap() == 0usize {
         println!(
@@ -23,7 +60,7 @@ async fn reroute_message<'a>(msg: &mut Message<'a>) -> bool {
     }
     println!("Received from {:?}: {:?}", msg.sender_addr, msg.msg);
 
-    let new_msg = msg.msg.clone();
+    let new_msg = rewrite_boguscoin_addr(&msg.msg);
 
     println!("Sending to {:?}: {:?}", msg.dest_addr, new_msg);
     msg.dest_writer
@@ -94,5 +131,46 @@ async fn main() {
                 }
             }
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    // Note this useful idiom: importing names from outer (for mod tests) scope.
+    use super::*;
+
+    #[test]
+    fn test_is_boguscoin_addr() {
+        assert!(is_boguscoin_addr("7F1u3wSD5RbOHQmupo9nx4TnhQ"));
+        assert!(is_boguscoin_addr("7iKDZEwPZSqIvDnHvVN2r0hUWXD5rHX"));
+        assert!(is_boguscoin_addr("7LOrwbDlS8NujgjddyogWgIM93MV5N2VR"));
+        assert!(is_boguscoin_addr("7adNeSwJkMakpEcln9HEtthSRtxdmEHOT8T"));
+        assert!(!is_boguscoin_addr("7adNeSwJk@akpEcln9HEtthSRtxdmEHOT8T"));
+        assert!(!is_boguscoin_addr("adNeSwJkMakpEcln9HEtthSRtxdmEHOT8T"));
+        assert!(!is_boguscoin_addr("adNeSwJkMakpEcln9HtxdmEHOT8T"));
+        assert!(!is_boguscoin_addr("7adNeSwEHOT8T"));
+        assert!(!is_boguscoin_addr(
+            "7adNeSwasdkfjhkJLHHLKASJHDsdnfakjhaasdkfjhbaksdfEHOT8T"
+        ));
+    }
+
+    #[test]
+    fn test_rewrite_boguscoin_addr() {
+        assert_eq!(
+            rewrite_boguscoin_addr("7LOrwbDlS8NujgjddyogWgIM93MV5N2VR is my wallet address\n"),
+            format!("{} is my wallet address\n", TONY_BOGUSCOIN_ADDR)
+        );
+        assert_eq!(
+            rewrite_boguscoin_addr(
+                "Please send the money to 7adNeSwJkMakpEcln9HEtthSRtxdmEHOT8T thanks\n"
+            ),
+            format!("Please send the money to {} thanks\n", TONY_BOGUSCOIN_ADDR)
+        );
+        assert_eq!(
+            rewrite_boguscoin_addr(
+                "Hi alice, please send payment to 7iKDZEwPZSqIvDnHvVN2r0hUWXD5rHX\n"
+            ),
+            format!("Hi alice, please send payment to {}\n", TONY_BOGUSCOIN_ADDR)
+        );
     }
 }
