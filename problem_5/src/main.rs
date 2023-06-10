@@ -55,43 +55,42 @@ async fn main() {
             let (up_reader, mut up_writer) = upstream.into_split();
 
             let mut down_reader = BufReader::new(down_reader);
-            let mut down_line_buf = String::new();
+            let mut down_line_buf = Vec::new();
             let mut up_reader = BufReader::new(up_reader);
-            let mut up_line_buf = String::new();
+            let mut up_line_buf = Vec::new();
 
             loop {
-                down_line_buf.clear();
-                up_line_buf.clear();
-
                 tokio::select! {
-                result = down_reader.read_line(&mut down_line_buf) => {
-                    let mut msg = Message{
-                        result,
-                        msg: down_line_buf.clone(),
-                        sender_addr: &down_addr,
-                        dest_addr: &up_addr,
-                        dest_writer: &mut up_writer,
-                    };
+                    result = down_reader.read_until(b'\n', &mut down_line_buf) => {
+                        let mut msg = Message{
+                            result,
+                            msg: String::from_utf8_lossy(&down_line_buf).to_string(),
+                            sender_addr: &down_addr,
+                            dest_addr: &up_addr,
+                            dest_writer: &mut up_writer,
+                        };
+                        down_line_buf.clear();
 
-                    if reroute_message(&mut msg).await {
-                        break;
+                        if reroute_message(&mut msg).await {
+                            break;
+                        }
                     }
-                }
 
 
-                result = up_reader.read_line(&mut up_line_buf) => {
-                    let mut msg = Message{
-                        result,
-                        msg: up_line_buf.clone(),
-                        sender_addr: &up_addr,
-                        dest_addr: &down_addr,
-                        dest_writer: &mut down_writer,
-                    };
+                    result = up_reader.read_until(b'\n', &mut up_line_buf) => {
+                        let mut msg = Message{
+                            result,
+                            msg: String::from_utf8_lossy(&up_line_buf).to_string(),
+                            sender_addr: &up_addr,
+                            dest_addr: &down_addr,
+                            dest_writer: &mut down_writer,
+                        };
+                        up_line_buf.clear();
 
-                    if reroute_message(&mut msg).await {
-                        break;
+                        if reroute_message(&mut msg).await {
+                            break;
+                        }
                     }
-                }
                 }
             }
         });
