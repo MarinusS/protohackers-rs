@@ -71,9 +71,13 @@ async fn main() {
             tx.send((msg, addr)).unwrap();
             let mut rx = tx.subscribe();
 
+            let mut line_buf = Vec::new();
             loop {
                 tokio::select! {
-                    result = reader.read_line(&mut line_buf) => {
+                    result = reader.read_until(b'\n', &mut line_buf) => {
+                        let line = String::from_utf8_lossy(&line_buf).to_string();
+                        line_buf.clear();
+
                         if result.is_err() || result.unwrap() == 0 {
                             let mut users_locked = users.lock().await;
                             (*users_locked).remove(&addr);
@@ -83,18 +87,9 @@ async fn main() {
                             break;
                         }
 
-                        //FIX-ME
-                        //For some reason I never receive the message "Just one more thing\n" from alice,
-                        //I always just receive the slice " more thing\n"
-                        //So yeah this is a cheat
-                        if name == "alice" && line_buf.contains("more thing") {
-                            line_buf = "Just one more thing\n".to_string();
-                        }
-
-                        let msg = format!("[{}] {}", name, line_buf);
+                        let msg = format!("[{}] {}", name, line);
                         println!{"Received msg from {:?}: {:?}", name, msg}
                         tx.send((msg, addr)).unwrap();
-                        line_buf.clear()
                     }
 
                     result = rx.recv() => {
