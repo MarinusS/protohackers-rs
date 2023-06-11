@@ -1,4 +1,5 @@
 use super::plate::PlateFactory;
+use super::ticket::{self, TicketFactory};
 use super::{plate, Message};
 use std::collections::VecDeque;
 
@@ -72,6 +73,7 @@ fn new_sub_factory(id_byte: u8) -> Result<Box<dyn MessageFactory + Send>, Parsin
         i_am_camera::ID_BYTE => Ok(Box::new(IAmCameraFactory::new())),
         error::ID_BYTE => Ok(Box::new(ErrorFactory::new())),
         plate::ID_BYTE => Ok(Box::new(PlateFactory::new())),
+        ticket::ID_BYTE => Ok(Box::new(TicketFactory::new())),
         _ => Err(ParsingError {
             error_type: ParsingErrorType::UnknowMessageType,
         }),
