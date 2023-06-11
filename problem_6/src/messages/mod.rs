@@ -2,6 +2,7 @@ mod error;
 mod i_am_camera;
 mod plate;
 mod ticket;
+mod want_heartbeat;
 
 mod factory;
 
@@ -24,6 +25,9 @@ pub enum Message {
         mile2: u16,
         timestamp2: u32,
         speed: u16,
+    },
+    WantHeartbeat {
+        interval: u32,
     },
     IAmCamera {
         road: u16,
