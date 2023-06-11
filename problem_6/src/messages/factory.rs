@@ -1,4 +1,5 @@
-use super::Message;
+use super::plate::PlateFactory;
+use super::{plate, Message};
 use std::collections::VecDeque;
 
 use super::error;
@@ -70,6 +71,7 @@ fn new_sub_factory(id_byte: u8) -> Result<Box<dyn MessageFactory + Send>, Parsin
     match id_byte {
         i_am_camera::ID_BYTE => Ok(Box::new(IAmCameraFactory::new())),
         error::ID_BYTE => Ok(Box::new(ErrorFactory::new())),
+        plate::ID_BYTE => Ok(Box::new(PlateFactory::new())),
         _ => Err(ParsingError {
             error_type: ParsingErrorType::UnknowMessageType,
         }),
