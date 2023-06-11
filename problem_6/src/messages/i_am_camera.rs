@@ -16,15 +16,6 @@ impl MessageFactory for IAmCameraFactory {
         }
     }
 
-    fn next_field_length(&self) -> usize {
-        match self.cursor {
-            0 => 2,
-            2 => 2,
-            4 => 2,
-            _ => unreachable!("The cursor should always be on a valid position"),
-        }
-    }
-
     fn push(&mut self, data: u8) -> Option<Message> {
         self.buffer[self.cursor] = data;
         self.cursor += 1;

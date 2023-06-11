@@ -1,6 +1,8 @@
 use super::Message;
 use std::collections::VecDeque;
 
+use super::error;
+use super::error::ErrorFactory;
 use super::i_am_camera;
 use super::i_am_camera::IAmCameraFactory;
 
@@ -24,7 +26,6 @@ pub trait MessageFactory {
     fn new() -> Self
     where
         Self: Sized;
-    fn next_field_length(&self) -> usize;
     fn push(&mut self, data: u8) -> Option<Message>;
 }
 
@@ -68,6 +69,7 @@ impl Factory {
 fn new_sub_factory(id_byte: u8) -> Result<Box<dyn MessageFactory + Send>, ParsingError> {
     match id_byte {
         i_am_camera::ID_BYTE => Ok(Box::new(IAmCameraFactory::new())),
+        error::ID_BYTE => Ok(Box::new(ErrorFactory::new())),
         _ => Err(ParsingError {
             error_type: ParsingErrorType::UnknowMessageType,
         }),
@@ -140,11 +142,12 @@ mod tests {
 
         let tests = vec![Test {
             test_data: vec![
-                &[0x80, 0x00, 0x42],
+                &[0x80, 0x00, 0x42], //Starting IamCamera
                 &[0x00, 0x64, 0x00],
-                &[0x3c, 0x80, 0x01],
+                &[0x3c, 0x80, 0x01], //Finished IamCamera and starting new IAmCamera
                 &[0x70, 0x04, 0xd2],
-                &[0x00, 0x28],
+                &[0x00, 0x28, 0x10], //Finished IamCamera and starting new Error
+                &[0x03, 0x62, 0x61, 0x64], //Finished Error
             ],
             expected: vec![
                 Vec::new(),
@@ -159,6 +162,9 @@ mod tests {
                     road: 368,
                     mile: 1234,
                     limit: 40,
+                }],
+                vec![Error {
+                    msg: "bad".to_string(),
                 }],
             ],
         }];
