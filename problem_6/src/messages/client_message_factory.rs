@@ -1,7 +1,8 @@
+use super::i_am_dispatcher::IAmDispatcherFactory;
 use super::plate::PlateFactory;
 use super::ticket::{self, TicketFactory};
 use super::want_heartbeat::WantHeartbeatFactory;
-use super::{heartbeat, plate, want_heartbeat, ClientMessage};
+use super::{heartbeat, i_am_dispatcher, plate, want_heartbeat, ClientMessage};
 use std::collections::VecDeque;
 
 use super::error;
@@ -71,10 +72,11 @@ impl ClientMessageFactory {
 
 fn new_sub_factory(id_byte: u8) -> Result<Box<dyn ClientMessageSubFactory + Send>, ParsingError> {
     match id_byte {
-        i_am_camera::ID_BYTE => Ok(Box::new(IAmCameraFactory::new())),
         plate::ID_BYTE => Ok(Box::new(PlateFactory::new())),
         ticket::ID_BYTE => Ok(Box::new(TicketFactory::new())),
         want_heartbeat::ID_BYTE => Ok(Box::new(WantHeartbeatFactory::new())),
+        i_am_camera::ID_BYTE => Ok(Box::new(IAmCameraFactory::new())),
+        i_am_dispatcher::ID_BYTE => Ok(Box::new(IAmDispatcherFactory::new())),
         error::ID_BYTE => Err(ParsingError {
             error_type: ParsingErrorType::WrongMessageType,
         }),
@@ -168,8 +170,9 @@ mod tests {
                 &[
                     0x00, 0x00, 0x03, 0xe8, 0x21, 0x07, 0x52, 0x45, 0x30, 0x35, 0x42, 0x4b, 0x47,
                     0x01, 0x70, 0x04, 0xd2, 0x00, 0x0f, 0x42, 0x40, 0x04, 0xd3, 0x00, 0x0f, 0x42,
-                    0x7c, 0x17, 0x70, 0x40, 0x00, 0x00, 0x04, 0xdb,
-                ], //Finish Plate, Start and Finish Ticket, Start and Finish Heartbeat
+                    0x7c, 0x17, 0x70, 0x40, 0x00, 0x00, 0x04, 0xdb, 0x81, 0x03, 0x00, 0x42,
+                ], //Finish Plate, Start and Finish Ticket, Start and Finish Heartbeat, Start IAmDispatcjer
+                &[0x01, 0x70, 0x13, 0x88], // Finish IAmDispatcher
             ],
             expected: vec![
                 Vec::new(),
@@ -211,6 +214,9 @@ mod tests {
                     },
                     WantHeartbeat { interval: 1243 },
                 ],
+                vec![IAmDispatcher {
+                    roads: vec![66, 368, 5000],
+                }],
             ],
         }];
 

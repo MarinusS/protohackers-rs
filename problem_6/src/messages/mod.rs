@@ -1,6 +1,7 @@
 mod error;
 mod heartbeat;
 mod i_am_camera;
+mod i_am_dispatcher;
 mod plate;
 mod ticket;
 mod want_heartbeat;
@@ -33,9 +34,11 @@ pub enum ClientMessage {
         mile: u16,
         limit: u16,
     },
+    IAmDispatcher {
+        roads: Vec<u16>,
+    },
 }
 
-//TODO Implement HeartBeat
 #[derive(PartialEq, Debug)]
 pub enum ServerMessage {
     Error { msg: error::Error },
