@@ -20,7 +20,7 @@ pub struct ParsingError {
 
 pub struct ClientMessageFactory {
     buffer: VecDeque<u8>,
-    curr_factory: Option<Box<dyn ClientMessageSubFactory + Send>>,
+    curr_factory: Option<Box<dyn ClientMessageSubFactory + Send + Sync>>,
 }
 
 pub trait ClientMessageSubFactory {
@@ -73,7 +73,9 @@ impl Default for ClientMessageFactory {
     }
 }
 
-fn new_sub_factory(id_byte: u8) -> Result<Box<dyn ClientMessageSubFactory + Send>, ParsingError> {
+fn new_sub_factory(
+    id_byte: u8,
+) -> Result<Box<dyn ClientMessageSubFactory + Send + Sync>, ParsingError> {
     match id_byte {
         plate::ID_BYTE => Ok(Box::new(PlateFactory::new())),
         want_heartbeat::ID_BYTE => Ok(Box::new(WantHeartbeatFactory::new())),

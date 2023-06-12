@@ -1,10 +1,10 @@
 pub const ID_BYTE: u8 = 0x41;
 
 #[derive(Debug, PartialEq)]
-pub struct Hearbeat;
+pub struct Heartbeat;
 
-impl Hearbeat {
-    fn encode(&self) -> Vec<u8> {
+impl Heartbeat {
+    pub fn encode() -> Vec<u8> {
         let data = vec![ID_BYTE];
         data
     }
@@ -17,7 +17,7 @@ mod tests {
 
     #[test]
     fn test_encode() {
-        let msg = Hearbeat;
+        let msg = Heartbeat;
         assert_eq!(msg.encode(), vec![ID_BYTE]);
     }
 }

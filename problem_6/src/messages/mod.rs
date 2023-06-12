@@ -18,9 +18,6 @@ pub enum ClientMessage {
     IAmDispatcher { roads: Vec<u16> },
 }
 
-#[derive(PartialEq, Debug)]
-pub enum ServerMessage {
-    Error { msg: error::Error },
-    Heartbeat { msg: heartbeat::Hearbeat },
-    Ticket { msg: ticket::Ticket },
+pub mod ServerMessage {
+    pub use super::heartbeat::Heartbeat;
 }
