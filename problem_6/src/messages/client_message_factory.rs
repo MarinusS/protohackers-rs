@@ -1,7 +1,7 @@
 use super::plate::PlateFactory;
 use super::ticket::{self, TicketFactory};
 use super::want_heartbeat::WantHeartbeatFactory;
-use super::{plate, want_heartbeat, ClientMessage};
+use super::{heartbeat, plate, want_heartbeat, ClientMessage};
 use std::collections::VecDeque;
 
 use super::error;
@@ -76,6 +76,9 @@ fn new_sub_factory(id_byte: u8) -> Result<Box<dyn ClientMessageSubFactory + Send
         ticket::ID_BYTE => Ok(Box::new(TicketFactory::new())),
         want_heartbeat::ID_BYTE => Ok(Box::new(WantHeartbeatFactory::new())),
         error::ID_BYTE => Err(ParsingError {
+            error_type: ParsingErrorType::WrongMessageType,
+        }),
+        heartbeat::ID_BYTE => Err(ParsingError {
             error_type: ParsingErrorType::WrongMessageType,
         }),
         _ => Err(ParsingError {

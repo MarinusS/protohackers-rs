@@ -1,4 +1,5 @@
 mod error;
+mod heartbeat;
 mod i_am_camera;
 mod plate;
 mod ticket;
@@ -8,7 +9,7 @@ mod client_message_factory;
 
 pub use client_message_factory::*;
 
-//TODO Implement IAmDispatcher and remove Error
+//TODO Implement IAmDispatcher
 #[derive(PartialEq, Debug)]
 pub enum ClientMessage {
     Plate {
@@ -34,8 +35,9 @@ pub enum ClientMessage {
     },
 }
 
-//TODO Implement Error and HeartBeat
+//TODO Implement HeartBeat
 #[derive(PartialEq, Debug)]
 pub enum ServerMessage {
     Error { msg: error::Error },
+    Heartbeat { msg: heartbeat::Hearbeat },
 }
