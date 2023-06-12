@@ -17,7 +17,6 @@ mod tests {
 
     #[test]
     fn test_encode() {
-        let msg = Heartbeat;
-        assert_eq!(msg.encode(), vec![ID_BYTE]);
+        assert_eq!(Heartbeat::encode(), vec![ID_BYTE]);
     }
 }
