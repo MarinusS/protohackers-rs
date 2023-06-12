@@ -70,6 +70,12 @@ impl ClientMessageFactory {
     }
 }
 
+impl Default for ClientMessageFactory {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 fn new_sub_factory(id_byte: u8) -> Result<Box<dyn ClientMessageSubFactory + Send>, ParsingError> {
     match id_byte {
         plate::ID_BYTE => Ok(Box::new(PlateFactory::new())),

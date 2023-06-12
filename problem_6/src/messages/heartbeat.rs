@@ -5,7 +5,7 @@ pub struct Hearbeat;
 
 impl Hearbeat {
     fn encode(&self) -> Vec<u8> {
-        let mut data = vec![ID_BYTE];
+        let data = vec![ID_BYTE];
         data
     }
 }
