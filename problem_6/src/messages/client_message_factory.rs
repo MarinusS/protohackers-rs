@@ -1,18 +1,15 @@
 use super::i_am_dispatcher::IAmDispatcherFactory;
 use super::plate::PlateFactory;
-use super::ticket::{self, TicketFactory};
 use super::want_heartbeat::WantHeartbeatFactory;
-use super::{heartbeat, i_am_dispatcher, plate, want_heartbeat, ClientMessage};
+use super::{i_am_dispatcher, plate, want_heartbeat, ClientMessage};
 use std::collections::VecDeque;
 
-use super::error;
 use super::i_am_camera;
 use super::i_am_camera::IAmCameraFactory;
 
 #[derive(Debug)]
 pub enum ParsingErrorType {
-    UnknowMessageType { id: String },
-    WrongMessageType,
+    UnexpectedMessageType { id: String },
 }
 
 #[allow(dead_code)]
@@ -79,18 +76,11 @@ impl Default for ClientMessageFactory {
 fn new_sub_factory(id_byte: u8) -> Result<Box<dyn ClientMessageSubFactory + Send>, ParsingError> {
     match id_byte {
         plate::ID_BYTE => Ok(Box::new(PlateFactory::new())),
-        ticket::ID_BYTE => Ok(Box::new(TicketFactory::new())),
         want_heartbeat::ID_BYTE => Ok(Box::new(WantHeartbeatFactory::new())),
         i_am_camera::ID_BYTE => Ok(Box::new(IAmCameraFactory::new())),
         i_am_dispatcher::ID_BYTE => Ok(Box::new(IAmDispatcherFactory::new())),
-        error::ID_BYTE => Err(ParsingError {
-            error_type: ParsingErrorType::WrongMessageType,
-        }),
-        heartbeat::ID_BYTE => Err(ParsingError {
-            error_type: ParsingErrorType::WrongMessageType,
-        }),
         _ => Err(ParsingError {
-            error_type: ParsingErrorType::UnknowMessageType {
+            error_type: ParsingErrorType::UnexpectedMessageType {
                 id: id_byte.to_string(),
             },
         }),
@@ -167,18 +157,12 @@ mod tests {
                 &[0x00, 0x64, 0x00],
                 &[0x3c, 0x80, 0x01], //Finished IamCamera and starting new IAmCamera
                 &[0x70, 0x04, 0xd2],
-                &[0x00, 0x28], //Finished IamCamera
-                &[
-                    0x21, 0x04, 0x55, 0x4e, 0x31, 0x58, 0x00, 0x42, 0x00, 0x64, 0x00, 0x01, 0xe2,
-                    0x40, 0x00, 0x6e, 0x00, 0x01, 0xe3, 0xa8, 0x27, 0x10,
-                ], // Start and finish Ticket
+                &[0x00, 0x28],                         //Finished IamCamera
                 &[0x20, 0x04, 0x55, 0x4e, 0x31, 0x58], //Start Plate
                 &[
-                    0x00, 0x00, 0x03, 0xe8, 0x21, 0x07, 0x52, 0x45, 0x30, 0x35, 0x42, 0x4b, 0x47,
-                    0x01, 0x70, 0x04, 0xd2, 0x00, 0x0f, 0x42, 0x40, 0x04, 0xd3, 0x00, 0x0f, 0x42,
-                    0x7c, 0x17, 0x70, 0x40, 0x00, 0x00, 0x04, 0xdb, 0x81, 0x03, 0x00, 0x42,
-                ], //Finish Plate, Start and Finish Ticket, Start and Finish Heartbeat, Start IAmDispatcjer
-                &[0x01, 0x70, 0x13, 0x88], // Finish IAmDispatcher
+                    0x00, 0x00, 0x03, 0xe8, 0x40, 0x00, 0x00, 0x04, 0xdb, 0x81, 0x03, 0x00, 0x42,
+                ], //Finish Plate,  Start and Finish WantHeartbeat, Start IAmDispatcjer
+                &[0x01, 0x70, 0x13, 0x88],             // Finish IAmDispatcher
             ],
             expected: vec![
                 Vec::new(),
@@ -194,29 +178,11 @@ mod tests {
                     mile: 1234,
                     limit: 40,
                 }],
-                vec![Ticket {
-                    plate: "UN1X".to_string(),
-                    road: 66,
-                    mile1: 100,
-                    timestamp1: 123456,
-                    mile2: 110,
-                    timestamp2: 123816,
-                    speed: 10000,
-                }],
                 Vec::new(),
                 vec![
                     Plate {
                         plate: "UN1X".to_string(),
                         timestamp: 1000,
-                    },
-                    Ticket {
-                        plate: "RE05BKG".to_string(),
-                        road: 368,
-                        mile1: 1234,
-                        timestamp1: 1000000,
-                        mile2: 1235,
-                        timestamp2: 1000060,
-                        speed: 6000,
                     },
                     WantHeartbeat { interval: 1243 },
                 ],
