@@ -10,7 +10,6 @@ mod client_message_factory;
 
 pub use client_message_factory::*;
 
-//TODO Implement IAmDispatcher
 #[derive(PartialEq, Debug)]
 pub enum ClientMessage {
     Plate {
