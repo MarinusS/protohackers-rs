@@ -1,5 +1,5 @@
-use super::Message;
-use super::MessageFactory;
+use super::ClientMessage;
+use super::ClientMessageSubFactory;
 
 pub const ID_BYTE: u8 = 0x20;
 
@@ -9,7 +9,7 @@ pub struct PlateFactory {
     cursor: usize,
 }
 
-impl MessageFactory for PlateFactory {
+impl ClientMessageSubFactory for PlateFactory {
     fn new() -> Self {
         PlateFactory {
             buffer: Vec::new(),
@@ -18,7 +18,7 @@ impl MessageFactory for PlateFactory {
         }
     }
 
-    fn push(&mut self, data: u8) -> Option<Message> {
+    fn push(&mut self, data: u8) -> Option<ClientMessage> {
         if self.buffer.is_empty() {
             self.buffer.extend(vec![0; data as usize + 4]);
             self.plate_len = data as usize;
@@ -28,7 +28,7 @@ impl MessageFactory for PlateFactory {
         }
 
         if self.cursor == self.buffer.len() {
-            Some(Message::Plate {
+            Some(ClientMessage::Plate {
                 plate: String::from_utf8_lossy(&self.buffer[..self.plate_len]).to_string(),
                 timestamp: u32::from_be_bytes(self.buffer[self.plate_len..].try_into().unwrap()),
             })
@@ -41,14 +41,14 @@ impl MessageFactory for PlateFactory {
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::Message::Plate;
+    use super::ClientMessage::Plate;
     use super::*;
 
     #[test]
     fn test_push() {
         struct Test {
             test_data: Vec<u8>,
-            expected: Message,
+            expected: ClientMessage,
         }
 
         let tests = vec![

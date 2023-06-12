@@ -4,15 +4,13 @@ mod plate;
 mod ticket;
 mod want_heartbeat;
 
-mod factory;
+mod client_message_factory;
 
-pub use factory::*;
+pub use client_message_factory::*;
 
+//TODO Implement IAmDispatcher and remove Error
 #[derive(PartialEq, Debug)]
-pub enum Message {
-    Error {
-        msg: String,
-    },
+pub enum ClientMessage {
     Plate {
         plate: String,
         timestamp: u32,
@@ -34,4 +32,10 @@ pub enum Message {
         mile: u16,
         limit: u16,
     },
+}
+
+//TODO Implement Error and HeartBeat
+#[derive(PartialEq, Debug)]
+pub enum ServerMessage {
+    Error { msg: error::Error },
 }

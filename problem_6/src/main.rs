@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use messages::Factory;
+use messages::ClientMessageFactory;
 use tokio::{
     io::{AsyncReadExt, BufReader},
     net::TcpListener,
@@ -22,7 +22,7 @@ async fn main() {
             let mut reader = BufReader::new(reader);
             let mut buf = Vec::new();
 
-            let mut fact = Factory::new();
+            let mut fact = ClientMessageFactory::new();
             reader.read_to_end(&mut buf).await.unwrap();
             let msg = fact.push(&buf);
 

@@ -1,5 +1,5 @@
-use super::Message;
-use super::MessageFactory;
+use super::ClientMessage;
+use super::ClientMessageSubFactory;
 
 pub const ID_BYTE: u8 = 0x21;
 
@@ -9,7 +9,7 @@ pub struct TicketFactory {
     cursor: usize,
 }
 
-impl MessageFactory for TicketFactory {
+impl ClientMessageSubFactory for TicketFactory {
     fn new() -> Self {
         TicketFactory {
             buffer: Vec::new(),
@@ -18,7 +18,7 @@ impl MessageFactory for TicketFactory {
         }
     }
 
-    fn push(&mut self, data: u8) -> Option<Message> {
+    fn push(&mut self, data: u8) -> Option<ClientMessage> {
         if self.buffer.is_empty() {
             self.buffer.extend(vec![0; data as usize + 16]);
             self.plate_len = data as usize;
@@ -35,7 +35,7 @@ impl MessageFactory for TicketFactory {
             let timestamp2_offset = mile2_offset + 2;
             let speed_offset = timestamp2_offset + 4;
 
-            Some(Message::Ticket {
+            Some(ClientMessage::Ticket {
                 plate: String::from_utf8_lossy(&self.buffer[..road_offset]).to_string(),
                 road: u16::from_be_bytes(
                     self.buffer[road_offset..mile1_offset].try_into().unwrap(),
@@ -71,14 +71,14 @@ impl MessageFactory for TicketFactory {
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::Message::Ticket;
+    use super::ClientMessage::Ticket;
     use super::*;
 
     #[test]
     fn test_push() {
         struct Test {
             test_data: Vec<u8>,
-            expected: Message,
+            expected: ClientMessage,
         }
 
         let tests = vec![

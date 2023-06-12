@@ -1,5 +1,5 @@
-use super::Message;
-use super::MessageFactory;
+use super::ClientMessage;
+use super::ClientMessageSubFactory;
 
 pub const ID_BYTE: u8 = 0x80;
 
@@ -8,7 +8,7 @@ pub struct IAmCameraFactory {
     cursor: usize,
 }
 
-impl MessageFactory for IAmCameraFactory {
+impl ClientMessageSubFactory for IAmCameraFactory {
     fn new() -> Self {
         IAmCameraFactory {
             buffer: [0; 6],
@@ -16,12 +16,12 @@ impl MessageFactory for IAmCameraFactory {
         }
     }
 
-    fn push(&mut self, data: u8) -> Option<Message> {
+    fn push(&mut self, data: u8) -> Option<ClientMessage> {
         self.buffer[self.cursor] = data;
         self.cursor += 1;
 
         if self.cursor == self.buffer.len() {
-            Some(Message::IAmCamera {
+            Some(ClientMessage::IAmCamera {
                 road: u16::from_be_bytes(self.buffer[0..2].try_into().unwrap()),
                 mile: u16::from_be_bytes(self.buffer[2..4].try_into().unwrap()),
                 limit: u16::from_be_bytes(self.buffer[4..6].try_into().unwrap()),
@@ -35,14 +35,14 @@ impl MessageFactory for IAmCameraFactory {
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::Message::IAmCamera;
+    use super::ClientMessage::IAmCamera;
     use super::*;
 
     #[test]
     fn test_push() {
         struct Test {
             test_data: [u8; 6],
-            expected: Message,
+            expected: ClientMessage,
         }
 
         let tests = vec![

@@ -1,17 +1,17 @@
 use super::plate::PlateFactory;
 use super::ticket::{self, TicketFactory};
 use super::want_heartbeat::WantHeartbeatFactory;
-use super::{plate, want_heartbeat, Message};
+use super::{plate, want_heartbeat, ClientMessage};
 use std::collections::VecDeque;
 
 use super::error;
-use super::error::ErrorFactory;
 use super::i_am_camera;
 use super::i_am_camera::IAmCameraFactory;
 
 #[derive(Debug)]
-enum ParsingErrorType {
+pub enum ParsingErrorType {
     UnknowMessageType { id: String },
+    WrongMessageType,
 }
 
 #[allow(dead_code)]
@@ -20,27 +20,27 @@ pub struct ParsingError {
     error_type: ParsingErrorType,
 }
 
-pub struct Factory {
+pub struct ClientMessageFactory {
     buffer: VecDeque<u8>,
-    curr_factory: Option<Box<dyn MessageFactory + Send>>,
+    curr_factory: Option<Box<dyn ClientMessageSubFactory + Send>>,
 }
 
-pub trait MessageFactory {
+pub trait ClientMessageSubFactory {
     fn new() -> Self
     where
         Self: Sized;
-    fn push(&mut self, data: u8) -> Option<Message>;
+    fn push(&mut self, data: u8) -> Option<ClientMessage>;
 }
 
-impl Factory {
+impl ClientMessageFactory {
     pub fn new() -> Self {
-        Factory {
+        ClientMessageFactory {
             buffer: VecDeque::new(),
             curr_factory: None,
         }
     }
 
-    pub fn push(&mut self, data: &[u8]) -> Result<Vec<Message>, ParsingError> {
+    pub fn push(&mut self, data: &[u8]) -> Result<Vec<ClientMessage>, ParsingError> {
         let mut new_messages = Vec::new();
         self.buffer.extend(data.iter());
 
@@ -69,13 +69,15 @@ impl Factory {
     }
 }
 
-fn new_sub_factory(id_byte: u8) -> Result<Box<dyn MessageFactory + Send>, ParsingError> {
+fn new_sub_factory(id_byte: u8) -> Result<Box<dyn ClientMessageSubFactory + Send>, ParsingError> {
     match id_byte {
         i_am_camera::ID_BYTE => Ok(Box::new(IAmCameraFactory::new())),
-        error::ID_BYTE => Ok(Box::new(ErrorFactory::new())),
         plate::ID_BYTE => Ok(Box::new(PlateFactory::new())),
         ticket::ID_BYTE => Ok(Box::new(TicketFactory::new())),
         want_heartbeat::ID_BYTE => Ok(Box::new(WantHeartbeatFactory::new())),
+        error::ID_BYTE => Err(ParsingError {
+            error_type: ParsingErrorType::WrongMessageType,
+        }),
         _ => Err(ParsingError {
             error_type: ParsingErrorType::UnknowMessageType {
                 id: id_byte.to_string(),
@@ -91,10 +93,10 @@ mod tests {
 
     #[test]
     fn test_push_one_byte() {
-        use super::Message::*;
+        use super::ClientMessage::*;
         struct Test {
             test_data: Vec<u8>,
-            expected: Vec<Vec<Message>>,
+            expected: Vec<Vec<ClientMessage>>,
         }
 
         let tests = vec![Test {
@@ -128,7 +130,7 @@ mod tests {
         }];
 
         for test in tests {
-            let mut fact = Factory::new();
+            let mut fact = ClientMessageFactory::new();
 
             for (i, &data) in test.test_data.iter().enumerate() {
                 let messages = fact.push(&[data]);
@@ -142,10 +144,10 @@ mod tests {
 
     #[test]
     fn test_push_in_slices() {
-        use super::Message::*;
+        use super::ClientMessage::*;
         struct Test<'a> {
             test_data: Vec<&'a [u8]>,
-            expected: Vec<Vec<Message>>,
+            expected: Vec<Vec<ClientMessage>>,
         }
 
         let tests = vec![Test {
@@ -154,8 +156,7 @@ mod tests {
                 &[0x00, 0x64, 0x00],
                 &[0x3c, 0x80, 0x01], //Finished IamCamera and starting new IAmCamera
                 &[0x70, 0x04, 0xd2],
-                &[0x00, 0x28, 0x10], //Finished IamCamera and starting new Error
-                &[0x03, 0x62, 0x61, 0x64], //Finished Error
+                &[0x00, 0x28], //Finished IamCamera
                 &[
                     0x21, 0x04, 0x55, 0x4e, 0x31, 0x58, 0x00, 0x42, 0x00, 0x64, 0x00, 0x01, 0xe2,
                     0x40, 0x00, 0x6e, 0x00, 0x01, 0xe3, 0xa8, 0x27, 0x10,
@@ -180,9 +181,6 @@ mod tests {
                     road: 368,
                     mile: 1234,
                     limit: 40,
-                }],
-                vec![Error {
-                    msg: "bad".to_string(),
                 }],
                 vec![Ticket {
                     plate: "UN1X".to_string(),
@@ -214,7 +212,7 @@ mod tests {
         }];
 
         for test in tests {
-            let mut fact = Factory::new();
+            let mut fact = ClientMessageFactory::new();
 
             for (i, data) in test.test_data.iter().enumerate() {
                 let messages = fact.push(data);
@@ -228,10 +226,10 @@ mod tests {
 
     #[test]
     fn test_push_multiple() {
-        use super::Message::*;
+        use super::ClientMessage::*;
         struct Test<'a> {
             test_data: Vec<&'a [u8]>,
-            expected: Vec<Vec<Message>>,
+            expected: Vec<Vec<ClientMessage>>,
         }
 
         let tests = vec![Test {
@@ -253,7 +251,7 @@ mod tests {
         }];
 
         for test in tests {
-            let mut fact = Factory::new();
+            let mut fact = ClientMessageFactory::new();
 
             for (i, data) in test.test_data.iter().enumerate() {
                 let messages = fact.push(data);

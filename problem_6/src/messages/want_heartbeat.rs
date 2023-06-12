@@ -1,5 +1,5 @@
-use super::Message;
-use super::MessageFactory;
+use super::ClientMessage;
+use super::ClientMessageSubFactory;
 
 pub const ID_BYTE: u8 = 0x40;
 
@@ -8,7 +8,7 @@ pub struct WantHeartbeatFactory {
     cursor: usize,
 }
 
-impl MessageFactory for WantHeartbeatFactory {
+impl ClientMessageSubFactory for WantHeartbeatFactory {
     fn new() -> Self {
         WantHeartbeatFactory {
             buffer: [0; 4],
@@ -16,12 +16,12 @@ impl MessageFactory for WantHeartbeatFactory {
         }
     }
 
-    fn push(&mut self, data: u8) -> Option<Message> {
+    fn push(&mut self, data: u8) -> Option<ClientMessage> {
         self.buffer[self.cursor] = data;
         self.cursor += 1;
 
         if self.cursor == self.buffer.len() {
-            Some(Message::WantHeartbeat {
+            Some(ClientMessage::WantHeartbeat {
                 interval: u32::from_be_bytes(self.buffer),
             })
         } else {
@@ -33,14 +33,14 @@ impl MessageFactory for WantHeartbeatFactory {
 #[cfg(test)]
 mod tests {
     // Note this useful idiom: importing names from outer (for mod tests) scope.
-    use super::Message::WantHeartbeat;
+    use super::ClientMessage::WantHeartbeat;
     use super::*;
 
     #[test]
     fn test_push() {
         struct Test {
             test_data: [u8; 4],
-            expected: Message,
+            expected: ClientMessage,
         }
 
         let tests = vec![
