@@ -2,17 +2,17 @@ pub const ID_BYTE: u8 = 0x21;
 
 #[derive(Debug, PartialEq)]
 pub struct Ticket {
-    plate: String,
-    road: u16,
-    mile1: u16,
-    timestamp1: u32,
-    mile2: u16,
-    timestamp2: u32,
-    speed: u16,
+    pub plate: String,
+    pub road: u16,
+    pub mile1: u16,
+    pub timestamp1: u32,
+    pub mile2: u16,
+    pub timestamp2: u32,
+    pub speed: u16,
 }
 
 impl Ticket {
-    fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         let plate_len = self.plate.as_bytes().len();
         let mut data = Vec::with_capacity(1 + 1 + plate_len + 2 + 2 + 4 + 2 + 4 + 2);
 

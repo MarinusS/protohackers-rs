@@ -2,11 +2,11 @@ pub const ID_BYTE: u8 = 0x10;
 
 #[derive(Debug, PartialEq)]
 pub struct Error {
-    msg: String,
+    pub msg: String,
 }
 
 impl Error {
-    fn encode(&self) -> Vec<u8> {
+    pub fn encode(&self) -> Vec<u8> {
         let msg_field_len = self.msg.as_bytes().len();
         let mut data = Vec::with_capacity(2 + msg_field_len);
 

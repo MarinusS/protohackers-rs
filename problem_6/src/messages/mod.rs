@@ -19,5 +19,7 @@ pub enum ClientMessage {
 }
 
 pub mod ServerMessage {
+    pub use super::error::Error;
     pub use super::heartbeat::Heartbeat;
+    pub use super::ticket::Ticket;
 }

@@ -1,0 +1,159 @@
+use std::collections::{BTreeMap, HashMap};
+use std::ops::Bound::Excluded;
+use std::ops::Bound::Unbounded;
+
+use tokio::sync::mpsc;
+
+type Road = u16;
+type Mile = u16;
+type Plate = String;
+type Timestamp = u32;
+
+#[derive(Clone, Copy)]
+struct SortedSpeedAverage {
+    pub mile1: Mile,
+    pub timestamp1: Timestamp,
+    pub mile2: Mile,
+    pub timestamp2: Timestamp,
+    pub average: u16,
+}
+//Function parameters do not have to be sorted, output is sorted
+fn compute_average_speed(
+    mile1: Mile,
+    timestamp1: Timestamp,
+    mile2: Mile,
+    timestamp2: Timestamp,
+) -> Option<SortedSpeedAverage> {
+    if timestamp2 == timestamp1 {
+        return None;
+    }
+
+    let mut mile1 = mile1;
+    let mut mile2 = mile2;
+    let mut timestamp1 = timestamp1;
+    let mut timestamp2 = timestamp2;
+
+    if timestamp2 < timestamp1 {
+        (mile1, mile2) = (mile2, mile1);
+        (timestamp1, timestamp2) = (timestamp2, timestamp1);
+    }
+
+    let average_speed = mile2.abs_diff(mile1) as u32 / (timestamp2 - timestamp1);
+
+    Some(SortedSpeedAverage {
+        mile1,
+        mile2,
+        timestamp1,
+        timestamp2,
+        average: average_speed as u16,
+    })
+}
+
+pub struct PlateObsv {
+    pub plate: Plate,
+    pub road: Road,
+    pub mile: Mile,
+    pub speed_limit: u16,
+    pub timestamp: Timestamp,
+}
+
+pub struct Manager {
+    plate_obsvervations: HashMap<Plate, HashMap<Road, BTreeMap<Mile, Timestamp>>>,
+    plate_obsv_chan_rx: mpsc::Receiver<PlateObsv>,
+    plate_obsv_chan_tx: mpsc::Sender<PlateObsv>,
+
+    last_day_ticket_sent: HashMap<Plate, u32>,
+}
+
+#[derive(Clone)]
+pub struct PublicChannels {
+    pub plate_obsv_chan_tx: mpsc::Sender<PlateObsv>,
+}
+impl Manager {
+    pub fn new() -> Manager {
+        let plate_obsvervations = HashMap::new();
+        let (plate_obsv_chan_tx, plate_obsv_chan_rx) = mpsc::channel(1024);
+
+        let last_day_ticket_sent = HashMap::new();
+
+        Manager {
+            plate_obsvervations,
+            plate_obsv_chan_rx,
+            plate_obsv_chan_tx,
+            last_day_ticket_sent,
+        }
+    }
+
+    pub fn get_channels(&self) -> PublicChannels {
+        PublicChannels {
+            plate_obsv_chan_tx: self.plate_obsv_chan_tx.clone(),
+        }
+    }
+
+    fn check_if_speeding(&self, plate_obsv: PlateObsv) -> Option<SortedSpeedAverage> {
+        let prev_seen_at_miles = self
+            .plate_obsvervations
+            .get(&plate_obsv.plate)
+            .and_then(|roads| roads.get(&plate_obsv.road));
+
+        if let Some(prev_seen_at_miles) = prev_seen_at_miles {
+            let previous_mile_obsv = prev_seen_at_miles
+                .range((Unbounded, Excluded(plate_obsv.mile)))
+                .last();
+            let next_mile_obsv = prev_seen_at_miles
+                .range((Excluded(plate_obsv.mile), Unbounded))
+                .next();
+
+            let average_speed = previous_mile_obsv.and_then(|(&mile, &timestamp)| {
+                compute_average_speed(plate_obsv.mile, plate_obsv.timestamp, mile, timestamp)
+                    .as_ref()
+            });
+
+            if average_speed.is_some_and(|avg| avg.average > plate_obsv.speed_limit) {
+                return Some(*average_speed.as_deref().unwrap());
+            }
+
+            let average_speed = next_mile_obsv.and_then(|(&mile, &timestamp)| {
+                compute_average_speed(plate_obsv.mile, plate_obsv.timestamp, mile, timestamp)
+            });
+
+            let limit_exceeded =
+                average_speed.is_some_and(|avg| avg.average > plate_obsv.speed_limit);
+        };
+
+        todo!()
+    }
+
+    fn register_plate_observation(&mut self, plate_obsv: PlateObsv) {
+        let curr_day = plate_obsv.timestamp / 86400;
+
+        let last_ticket_day = self.last_day_ticket_sent.get(&plate_obsv.plate.clone());
+
+        if last_ticket_day.is_none() || *last_ticket_day.unwrap() != curr_day {
+            todo!();
+        }
+
+        self.plate_obsvervations
+            .entry(plate_obsv.plate)
+            .or_insert(HashMap::new())
+            .entry(plate_obsv.road)
+            .or_insert(BTreeMap::new())
+            .insert(plate_obsv.mile, plate_obsv.timestamp);
+    }
+
+    pub async fn run(&mut self) {
+        loop {
+            tokio::select! {
+                Some(plate_obsv) = self.plate_obsv_chan_rx.recv() => {
+                    self.register_plate_observation(plate_obsv);
+                }
+            }
+        }
+    }
+}
+
+impl Default for Manager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
