@@ -213,7 +213,7 @@ fn new_heart(mut defribillator_rx: mpsc::Receiver<u32>) -> mpsc::Receiver<()> {
         if let Some(interval) = defribillator_rx.recv().await {
             if interval > 0 {
                 let seconds = interval as u64 / 10;
-                let nanos = (interval % 10) * 1_000_000_000;
+                let nanos = (interval % 10) * 100_000_000;
 
                 let interval = tokio::time::Duration::new(seconds, nanos);
                 loop {
