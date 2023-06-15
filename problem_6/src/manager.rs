@@ -12,7 +12,7 @@ type Mile = u16;
 type Plate = String;
 type Timestamp = u32;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 struct SortedSpeedAverage {
     pub mile1: Mile,
     pub timestamp1: Timestamp,
@@ -22,7 +22,7 @@ struct SortedSpeedAverage {
 }
 
 //Function parameters do not have to be sorted, output is sorted
-//Output speed average is in miles per hour
+//Output speed average is in miles per hour * 100
 fn compute_average_speed(
     mile1: Mile,
     timestamp1: Timestamp,
@@ -43,7 +43,8 @@ fn compute_average_speed(
         (timestamp1, timestamp2) = (timestamp2, timestamp1);
     }
 
-    let average_speed = mile2.abs_diff(mile1) as u32 * (3600 / (timestamp2 - timestamp1));
+    let average_speed =
+        (mile2.abs_diff(mile1) as f32 * 100.0 * 3600.0 / (timestamp2 - timestamp1) as f32) as u32;
 
     Some(SortedSpeedAverage {
         mile1,
@@ -54,6 +55,7 @@ fn compute_average_speed(
     })
 }
 
+#[derive(Debug)]
 pub struct PlateObsv {
     pub plate: Plate,
     pub road: Road,
@@ -167,28 +169,23 @@ impl Manager {
             .get(&plate_obsv.plate)
             .and_then(|roads| roads.get(&plate_obsv.road));
 
+        let speed_limit = plate_obsv.speed_limit * 100;
+        println!("Trying to compute speed for {:?}", plate_obsv.plate);
         if let Some(prev_seen_at_miles) = prev_seen_at_miles {
-            let previous_mile_obsv = prev_seen_at_miles
-                .range((Unbounded, Excluded(plate_obsv.mile)))
-                .last();
-            let next_mile_obsv = prev_seen_at_miles
-                .range((Excluded(plate_obsv.mile), Unbounded))
-                .next();
-
-            let average_speed = previous_mile_obsv.and_then(|(&mile, &timestamp)| {
-                compute_average_speed(plate_obsv.mile, plate_obsv.timestamp, mile, timestamp)
-            });
-
-            if average_speed.is_some_and(|avg| avg.average > plate_obsv.speed_limit) {
-                return Some(average_speed.unwrap());
-            }
-
-            let average_speed = next_mile_obsv.and_then(|(&mile, &timestamp)| {
-                compute_average_speed(plate_obsv.mile, plate_obsv.timestamp, mile, timestamp)
-            });
-
-            if average_speed.is_some_and(|avg| avg.average > plate_obsv.speed_limit) {
-                return Some(average_speed.unwrap());
+            for record in prev_seen_at_miles.iter() {
+                let average_speed = compute_average_speed(
+                    plate_obsv.mile,
+                    plate_obsv.timestamp,
+                    *record.0,
+                    *record.1,
+                );
+                println!(
+                    "Avg speed prv miles for {:?}: {:?}",
+                    plate_obsv.plate, average_speed
+                );
+                if average_speed.is_some_and(|avg| avg.average > speed_limit) {
+                    return Some(average_speed.unwrap());
+                }
             }
         };
 
@@ -207,7 +204,7 @@ impl Manager {
                 .and_then(|list| list.last())
             {
                 if dispatcher.channel.send(ticket).await.is_err() {
-                    println!("Err: Failed to send ticket to dispatcher.");
+                    eprintln!("Err: Failed to send ticket to dispatcher.");
                 }
             }
         }
@@ -221,18 +218,53 @@ impl Manager {
             timestamp1: speeding_details.timestamp1,
             mile2: speeding_details.mile2,
             timestamp2: speeding_details.timestamp2,
-            speed: speeding_details.average * 100,
+            speed: speeding_details.average,
         };
+
+        //let ticket_day = ticket.timestamp2 / 86400;
+        //let plate_records = self
+        //    .plate_obsvervations
+        //    .get_mut(&ticket.plate)
+        //    .unwrap()
+        //    .get_mut(&ticket.road)
+        //    .unwrap();
+
+        //let mut records_to_delete = plate_records
+        //    .iter()
+        //    .filter(|(_, v)| **v / 86400 == ticket_day)
+        //    .map(|(k, _)| *k)
+        //    .collect::<Vec<_>>();
+        //records_to_delete.extend(
+        //    plate_records
+        //        .iter()
+        //        .filter(|(_, v)| **v / 86400 == ticket.timestamp1)
+        //        .map(|(k, _)| *k),
+        //);
+
+        //println!(
+        //    "Deleting obsv records for plate {}, {:?}",
+        //    ticket.plate,
+        //    records_to_delete.iter().collect::<Vec<_>>()
+        //);
+
+        //for mile in records_to_delete {
+        //    plate_records.remove(&mile);
+        //}
+
+        //plate_records.remove(&ticket.mile1);
+        //plate_records.remove(&ticket.mile2);
 
         if let Some(dispatcher) = self
             .dispatchers
             .get(&ticket.road)
             .and_then(|list| list.last())
         {
+            println!("Sending ticket: {:?}", ticket);
             if dispatcher.channel.send(ticket).await.is_err() {
-                println!("Err: Failed to send ticket to dispatcher.");
+                eprintln!("Err: Failed to send ticket to dispatcher.");
             }
         } else {
+            println!("No dispatcher available yet for tickets: {:?}", ticket);
             self.unsent_tickets
                 .entry(ticket.road)
                 .or_insert(Vec::new())
@@ -243,27 +275,47 @@ impl Manager {
     async fn register_plate_observation(&mut self, plate_obsv: PlateObsv) {
         let curr_day = plate_obsv.timestamp / 86400;
 
-        if !self
-            .day_ticket_sent
-            .entry(plate_obsv.plate.clone())
-            .or_insert(HashSet::new())
-            .contains(&curr_day)
-        {
-            if let Some(speeding_details) = self.check_if_speeding(&plate_obsv) {
+        println!(
+            "Plate obsv {:?} curr_day: {curr_day}, days_ticketed {:?}",
+            plate_obsv,
+            self.day_ticket_sent
+                .entry(plate_obsv.plate.clone())
+                .or_insert(HashSet::new())
+                .iter()
+                .collect::<Vec<_>>()
+        );
+
+        let mut ticket_sent = false;
+        if let Some(speeding_details) = self.check_if_speeding(&plate_obsv) {
+            let day1 = speeding_details.timestamp1 / 86400;
+            let day2 = speeding_details.timestamp2 / 86400;
+            println!(
+                    "Plate obsv {:?} was speeding, timestamp1 = {}s = {day1} day , timestamp2 = {}s = {day2} day",
+                    plate_obsv, speeding_details.timestamp1, speeding_details.timestamp2
+                );
+            let days_ticket_sent = self.day_ticket_sent.get_mut(&plate_obsv.plate).unwrap();
+
+            if !days_ticket_sent.contains(&day2) {
+                days_ticket_sent.insert(day1);
+                days_ticket_sent.insert(day2);
+                ticket_sent = true;
                 self.send_ticket(&plate_obsv, &speeding_details).await;
-                self.day_ticket_sent
-                    .get_mut(&plate_obsv.plate)
-                    .unwrap()
-                    .insert(curr_day);
+            } else {
+                println!(
+                    "Ticket already sent on same day for Plate obsv {:?}, timestamp1 = {}s = {day1} day , timestamp2 = {}s = {day2} day",
+                    plate_obsv, speeding_details.timestamp1, speeding_details.timestamp2
+                );
             }
         }
 
-        self.plate_obsvervations
-            .entry(plate_obsv.plate)
-            .or_insert(HashMap::new())
-            .entry(plate_obsv.road)
-            .or_insert(BTreeMap::new())
-            .insert(plate_obsv.mile, plate_obsv.timestamp);
+        if !ticket_sent {
+            self.plate_obsvervations
+                .entry(plate_obsv.plate)
+                .or_insert(HashMap::new())
+                .entry(plate_obsv.road)
+                .or_insert(BTreeMap::new())
+                .insert(plate_obsv.mile, plate_obsv.timestamp);
+        }
     }
 
     pub async fn run(&mut self) {
@@ -284,5 +336,48 @@ impl Manager {
 impl Default for Manager {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_compute_average_speed() {
+        let obsv1 = PlateObsv {
+            plate: "ZU54CQT".to_string(),
+            road: 16445,
+            mile: 470,
+            speed_limit: 60,
+            timestamp: 92662732,
+        };
+        let obsv2 = PlateObsv {
+            plate: "ZU54CQT".to_string(),
+            road: 16445,
+            mile: 916,
+            speed_limit: 60,
+            timestamp: 92678788,
+        };
+
+        let average_speed1 =
+            compute_average_speed(obsv1.mile, obsv1.timestamp, obsv2.mile, obsv2.timestamp);
+
+        dbg!(average_speed1);
+
+        let average_speed2 =
+            compute_average_speed(obsv2.mile, obsv2.timestamp, obsv1.mile, obsv1.timestamp);
+
+        dbg!(average_speed2);
+        let expected = SortedSpeedAverage {
+            mile1: obsv2.mile,
+            timestamp1: obsv2.timestamp,
+            mile2: obsv1.mile,
+            timestamp2: obsv1.timestamp,
+            average: 10000,
+        };
+
+        assert_eq!(average_speed1, Some(expected));
+        assert_eq!(average_speed2, Some(expected));
     }
 }

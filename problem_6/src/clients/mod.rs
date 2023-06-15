@@ -76,7 +76,6 @@ impl<'a> Client<'a> {
         if msgs.is_empty() {
             return Ok(());
         }
-        println!("Received msgs: {:?}", msgs);
         for msg in msgs {
             match msg {
                 WantHeartbeat { interval } => {
@@ -165,18 +164,18 @@ impl<'a> Client<'a> {
                     match msgs {
                         Ok(msgs) => match self.msgs_handler(msgs).await {
                             Err(Error::ProtocolError { msg }) => {
-                                println!("Error: Protocol error from client {:?}: {}", self.addr, msg);
+                                eprintln!("Error: Protocol error from client {:?}: {}", self.addr, msg);
                                 self.writer.write_all(&ErrorMessage{msg}.encode()).await.unwrap();
                                 break;
                             }
                             Err(Error::ManagerCommFailed) => {
-                                println!("Error: Communication with master failed for client {:?}", self.addr);
+                                eprintln!("Error: Communication with master failed for client {:?}", self.addr);
                                 break;
                             }
 
                             Ok(_) => {},
                         },
-                        Err(err) => println!("Error while parsing message: {:?}", err),
+                        Err(err) => eprintln!("Error while parsing message: {:?}", err),
                     };
                 }
 
@@ -184,7 +183,6 @@ impl<'a> Client<'a> {
                     self.writer.write_all(&Heartbeat::encode()).await.unwrap();
                 }
                 Some(ticket) = self.recv_ticket_chann_rx.recv() => {
-                    println!("Sending ticket to netorwk");
                     self.writer.write_all(&ticket.encode()).await.unwrap();
                 }
             }
@@ -201,7 +199,7 @@ impl<'a> Client<'a> {
                 .await
                 .is_err()
             {
-                println!("Failed to communicate with manager to annouce disconnect")
+                eprintln!("Failed to communicate with manager to annouce disconnect")
             }
         }
     }
