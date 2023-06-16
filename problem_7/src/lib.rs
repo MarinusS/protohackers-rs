@@ -225,10 +225,12 @@ fn parse_datagram(datagram: &[u8]) -> Option<Message> {
 mod test {
     use std::net::Ipv4Addr;
 
+    use tokio::task::JoinSet;
+
     use super::*;
 
     #[tokio::test(flavor = "current_thread")]
-    async fn test_connect_single_client() {
+    async fn test_connect_ack_single_client() {
         let server_addr = (Ipv4Addr::LOCALHOST, 8080);
         let client_addr = (Ipv4Addr::LOCALHOST, 10000);
 
@@ -266,5 +268,54 @@ mod test {
             }),
             recv_by_client
         );
+    }
+
+    #[tokio::test(flavor = "current_thread")]
+    async fn test_connect_ack_multiple_clients() {
+        let server_addr = (Ipv4Addr::LOCALHOST, 8080);
+
+        let num_clients = 15;
+        let clients_addr_ip = Ipv4Addr::LOCALHOST;
+        let clients_addr_port_strt = 10000;
+        let sessions_token_strt = 12345;
+
+        let server_handle = tokio::spawn(async move {
+            let mut listener = LRCPListener::new(server_addr.0, server_addr.1)
+                .await
+                .expect("Failed to open LRCPlistener");
+            loop {
+                let sock = listener.accept().await;
+                tokio::spawn(async move {
+                    let _sock = sock;
+                });
+            }
+        });
+
+        let mut clients_set = JoinSet::new();
+        for i in 0..num_clients {
+            clients_set.spawn(async move {
+                let token = sessions_token_strt + i as u32;
+                let sock = UdpSocket::bind((clients_addr_ip, clients_addr_port_strt + i))
+                    .await
+                    .expect("Simulated client failed to bind to udp socket");
+
+                sock.send_to(format!("/connect/{token}/").as_bytes(), server_addr)
+                    .await
+                    .unwrap();
+
+                let mut buf = [0; 1024];
+                let (len, _addr) = sock.recv_from(&mut buf).await.unwrap();
+                (token, parse_datagram(&buf[..len]))
+            });
+        }
+
+        while let Some(res) = clients_set.join_next().await {
+            let (token, ack) = res.unwrap();
+
+            assert_eq!(Some(Message::Ack { token, length: 0 }), ack);
+        }
+
+        assert!(!server_handle.is_finished());
+        server_handle.abort();
     }
 }
